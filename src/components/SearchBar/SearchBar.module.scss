@@ -1,0 +1,46 @@
+@import '../../styles/variables';
+
+.searchContainer {
+  position: relative;
+  max-width: 600px;
+  margin: 30px auto;
+  z-index: 10;
+
+  input {
+    width: 100%;
+    padding: 16px 24px;
+    font-size: 1.1rem;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    
+    &:focus {
+      outline: none;
+      box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+      background: white;
+    }
+  }
+}
+
+.suggestions {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  margin-top: 10px;
+  overflow: hidden;
+  
+  li {
+    padding: 14px 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+	&:hover {
+      background: #f5f7fa;
+    }
+    
+    &:not(:last-child) {
+      border-bottom: 1px solid #eee;
+    }
+  }
+}
