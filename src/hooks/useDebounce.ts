@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
-import debounce from 'lodash.debounce';
 
 export const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
   useEffect(() => {
-    const handler = debounce(() => setDebouncedValue(value), delay);
-    handler();
-    //return () => handler.cancel();
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Очищаем таймер при каждом изменении value
+    return () => clearTimeout(timer);
   }, [value, delay]);
 
   return debouncedValue;

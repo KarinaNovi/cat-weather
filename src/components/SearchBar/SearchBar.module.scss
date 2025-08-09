@@ -25,11 +25,16 @@
 }
 
 .suggestions {
+  position: absolute; // Ключевое изменение!
+  top: calc(100% + 10px); // Располагаем ниже поля ввода
+  left: 0;
+  right: 0;
   background: white;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  margin-top: 10px;
+  margin-top: 0; // Убираем предыдущий отступ
   overflow: hidden;
+  z-index: 20; // Убедимся, что выше других элементов
   
   li {
     padding: 14px 24px;

@@ -17,16 +17,8 @@ export const fetchWeather = async (lat: number, lon: number) => {
       longitude: lon,
       current_weather: true,
       hourly: 'relativehumidity_2m',
+      //hourly: 'temperature_2m',
     },
   });
   return response.data;
 };
-
-
-// export const fetchWeather = async (city: Object) => {
-//   const response = await axios
-//       .get(
-//         `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&APPID=4be91eddb95669a0ae602b58d3c50576`
-//       );
-//   return response.data;
-// };

@@ -7,15 +7,28 @@ const SearchBar: React.FC<{ onSelect: (city: any) => void }> = ({ onSelect }) =>
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const debouncedQuery = useDebounce(query, 300);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (debouncedQuery) {
-      fetchCities(debouncedQuery).then(setSuggestions);
+useEffect(() => {
+  if (debouncedQuery) {
+      const loadCities = async () => {
+        try {
+          const results = await fetchCities(debouncedQuery);
+          setSuggestions(results);
+        } catch (error) {
+          console.error("Failed to fetch cities:", error);
+          setSuggestions([]);
+        }
+      };
+      
+      loadCities();
     } else {
       setSuggestions([]);
     }
   }, [debouncedQuery]);
 
+      // TODO: Добавить норм лоадер
+      //{isLoading && <div className={styles.loader}>Загрузка...</div>}
   return (
     <div className={styles.searchContainer}>
       <input
@@ -24,7 +37,8 @@ const SearchBar: React.FC<{ onSelect: (city: any) => void }> = ({ onSelect }) =>
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Поиск города..."
       />
-      {suggestions.length > 0 && (
+
+{suggestions.length > 0 && !isLoading && (
         <ul className={styles.suggestions}>
           {suggestions.map((city) => (
             <li key={city.id} onClick={() => { onSelect(city); setQuery(''); }}>
