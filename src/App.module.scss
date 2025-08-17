@@ -3,7 +3,7 @@
 .appContainer {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  //min-height: 100vh;
   padding: 0 20px 0 20px;
 }
 
@@ -45,7 +45,7 @@
 // Адаптивность для iPhone 13
 @media (max-width: $mobile-portrait) {
   .appContainer {
-    padding: 15px;
+    padding: 0 15px 0 15px;
   }
   
   .appTitle {

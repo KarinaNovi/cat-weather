@@ -27,12 +27,27 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.cityName {
-  font-size: 2.8rem;
-  margin-bottom: 30px;
+.summary {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  
+  .cityName {
+  font-size: larger;
   text-align: center;
   font-weight: 700;
 }
+    span {
+      
+    display: block;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    opacity: 0.9;
+  }
+}
+
+
 
 .weatherGrid {
   display: grid;
@@ -88,8 +103,60 @@
   .weatherOverlay {
     padding: 15px;
   }
+
+    .cityName {
+    font-size: 2.2rem;
+  }
   
   .weatherGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
   }
+
+  .weatherCard {
+  
+  
+  span {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+    opacity: 0.9;
+  }
+  
+  p {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.chartContainer {
+  margin-top: 30px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.2rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+// Адаптивность для графика
+@media (max-width: $mobile-portrait) {
+  .chartContainer {
+    padding: 10px;
+    
+    h3 {
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+  }
+}
 }
