@@ -34,20 +34,18 @@
   justify-content: space-around;
   
   .cityName {
-  font-size: larger;
-  text-align: center;
-  font-weight: 700;
-}
-    span {
-      
+    font-size: larger;
+    text-align: center;
+    font-weight: 700;
+  }
+  
+  span {
     display: block;
     font-size: 1.1rem;
     margin-bottom: 8px;
     opacity: 0.9;
   }
 }
-
-
 
 .weatherGrid {
   display: grid;
@@ -59,7 +57,7 @@
 
 .weatherCard {
   background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(5px);
   border-radius: 16px;
   padding: 20px;
   text-align: center;
@@ -84,6 +82,44 @@
   }
 }
 
+.chartContainer {
+  margin-top: 30px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(5px);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.2rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.customTooltip {
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  padding: 10px;
+  border: none;
+  text-align: center;
+  
+  .label {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.8;
+  }
+  
+  .value {
+    margin: 5px 0 0;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+}
+
 // Адаптивность
 @media (max-width: $tablet) {
   .weatherOverlay {
@@ -104,7 +140,7 @@
     padding: 15px;
   }
 
-    .cityName {
+  .cityName {
     font-size: 2.2rem;
   }
   
@@ -114,42 +150,16 @@
   }
 
   .weatherCard {
-  
-  
-  span {
-    display: block;
-    font-size: 0.8rem;
-    margin-bottom: 8px;
-    opacity: 0.9;
+    span {
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+    }
+    
+    p {
+      font-size: 1rem;
+    }
   }
-  
-  p {
-    font-size: 1rem;
-    font-weight: 700;
-    margin: 0;
-  }
-}
 
-.chartContainer {
-  margin-top: 30px;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  
-  h3 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    text-align: center;
-    font-size: 1.2rem;
-    color: white;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  }
-}
-
-// Адаптивность для графика
-@media (max-width: $mobile-portrait) {
   .chartContainer {
     padding: 10px;
     
@@ -158,5 +168,4 @@
       margin-bottom: 10px;
     }
   }
-}
 }
