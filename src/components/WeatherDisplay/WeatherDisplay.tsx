@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getDominantColor } from "../../utils/colorUtils";
-import { getWeatherDescription } from "../../utils/weatherUtils";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+  getWeatherDescription,
+  getWeatherIcon,
+  getWindDirection,
+} from "../../utils/weatherUtils";
+import { AreaChart, Area, Tooltip, ResponsiveContainer } from "recharts";
 import styles from "./WeatherDisplay.module.scss";
 
 const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
@@ -29,36 +25,20 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
       .catch(() => setBgColor("#87CEEB"));
   };
 
-  const getWeatherIcon = (code: number) => {
-    const icons = {
-      0: "☀️", // Ясно
-      1: "⛅", // Преимущественно ясно
-      3: "☁️", // Пасмурно
-      61: "🌧️", // Дождь
-      // ...
-    };
-    return icons[code] || "🌈";
-  };
-
   const prepareChartData = () => {
     const currentTime = new Date(data.current_weather.time);
     const currentHour = currentTime.getHours();
-
-    // Находим индекс текущего часа
     const startIndex =
       data.hourly.time.findIndex(
         (time: string) => new Date(time).getHours() === currentHour
       ) || 0;
 
-    // Берем 24 часа начиная с текущего
     return data.hourly.time
       .slice(startIndex, startIndex + 24)
       .map((time: string, index: number) => {
         const date = new Date(time);
         return {
-          // Сохраняем полную дату для сортировки
           fullTime: date,
-          // Форматируем для отображения
           time: `${date.getHours()}:00`,
           humidity: data.hourly.relative_humidity_2m[startIndex + index],
           temperature: data.hourly.temperature_2m?.[startIndex + index] || 0,
@@ -69,6 +49,46 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
   };
 
   const chartData = prepareChartData();
+
+  const formatTime = (timeString: string) => {
+    return new Date(timeString).toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const calculateDaylightDuration = () => {
+    if (!data.daily || !data.daily.sunrise || !data.daily.sunset) return "";
+
+    const sunrise = new Date(data.daily.sunrise[0]);
+    const sunset = new Date(data.daily.sunset[0]);
+    const duration = sunset.getTime() - sunrise.getTime();
+
+    const hours = Math.floor(duration / (1000 * 60 * 60));
+    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+
+    return `${hours}ч ${minutes}м`;
+  };
+
+  // TODO: сделать типизацию наконец
+  const today = data.daily
+    ? {
+        weatherCode: data.current_weather.weathercode,
+        tempMax: data.daily.temperature_2m_max[0],
+        tempMin: data.daily.temperature_2m_min[0],
+        feelsLikeMax: data.daily.apparent_temperature_max[0],
+        feelsLikeMin: data.daily.apparent_temperature_min[0],
+        sunrise: data.daily.sunrise[0],
+        sunset: data.daily.sunset[0],
+        uvIndex: data.daily.uv_index_max[0],
+        precipitation: data.daily.precipitation_sum[0],
+        precipitationHours: data.daily.precipitation_hours[0],
+        windSpeedMax: data.daily.wind_speed_10m_max[0],
+        windGustsMax: data.daily.wind_gusts_10m_max[0],
+        windDirection: data.daily.wind_direction_10m_dominant[0],
+        solarRadiation: data.daily.shortwave_radiation_sum[0],
+      }
+    : null;
 
   return (
     <div
@@ -93,17 +113,137 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
           </span>
         </div>
 
-        <div className={styles.weatherGrid}>
-          <div className={styles.weatherCard}>
-            <span>Влажность</span>
-            <p>{data.hourly.relative_humidity_2m[0]}%</p>
-          </div>
+        {today && (
+          <div className={styles.weatherGrid}>
+            {/* Виджет температуры */}
+            <div className={styles.weatherCard}>
+              <div className={styles.weatherIcon}>🌡️</div>
+              <div className={styles.weatherInfo}>
+                <span className={styles.weatherLabel}>Температура</span>
+                <p className={styles.weatherValue}>
+                  {data.current_weather.temperature}°C
+                </p>
+                <div className={styles.tempDetails}>
+                  <div className={styles.tempRow}>
+                    <span>Макс:</span>
+                    <span>{today.tempMax}°C</span>
+                  </div>
+                  <div className={styles.tempRow}>
+                    <span>Мин:</span>
+                    <span>{today.tempMin}°C</span>
+                  </div>
+                  <div className={styles.tempRow}>
+                    <span>Ощущается:</span>
+                    <span>{today.feelsLikeMax}°C</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <div className={styles.weatherCard}>
-            <span>Ветер</span>
-            <p>{data.current_weather.windspeed} км/ч</p>
+            {/* Виджет ветра */}
+            <div className={styles.weatherCard}>
+              <div className={styles.weatherIcon}>🌬️</div>
+              <div className={styles.weatherInfo}>
+                <span className={styles.weatherLabel}>Ветер</span>
+                <p className={styles.weatherValue}>
+                  {data.current_weather.windspeed} км/ч
+                </p>
+                <div className={styles.windDetails}>
+                  <div className={styles.windRow}>
+                    <span>Порывы:</span>
+                    <span>{today.windGustsMax} км/ч</span>
+                  </div>
+                  <div className={styles.windRow}>
+                    <span>Макс:</span>
+                    <span>{today.windSpeedMax} км/ч</span>
+                  </div>
+                  <div className={styles.windDirection}>
+                    <span
+                      className={styles.windArrow}
+                      style={{
+                        transform: `rotate(${data.current_weather.winddirection}deg)`,
+                      }}
+                    >
+                      ↑
+                    </span>
+                    <span className={styles.windDirectionText}>
+                      {getWindDirection(data.current_weather.winddirection)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Виджет солнца */}
+            <div className={styles.weatherCard}>
+              <div className={styles.weatherIcon}>☀️</div>
+              <div className={styles.weatherInfo}>
+                <span className={styles.weatherLabel}>Солнце</span>
+                <div className={styles.sunDetails}>
+                  <div className={styles.sunRow}>
+                    <span>Восход:</span>
+                    <span>{formatTime(today.sunrise)}</span>
+                  </div>
+                  <div className={styles.sunRow}>
+                    <span>Закат:</span>
+                    <span>{formatTime(today.sunset)}</span>
+                  </div>
+                  <div className={styles.sunRow}>
+                    <span>UV индекс:</span>
+                    <span>{today.uvIndex}</span>
+                  </div>
+                  <div className={styles.sunRow}>
+                    <span>Солнечная радиация:</span>
+                    <span>
+                      {Math.round(today.solarRadiation / 100) / 10} кВт/м²
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Виджет осадков */}
+            <div className={styles.weatherCard}>
+              <div className={styles.weatherIcon}>🌧️</div>
+              <div className={styles.weatherInfo}>
+                <span className={styles.weatherLabel}>Осадки</span>
+                <p className={styles.weatherValue}>{today.precipitation} мм</p>
+                <div className={styles.precipitationDetails}>
+                  <div className={styles.precipitationRow}>
+                    <span>Часы с осадками:</span>
+                    <span>{today.precipitationHours} ч</span>
+                  </div>
+                  <div className={styles.precipitationRow}>
+                    <span>Влажность:</span>
+                    <span>{data.hourly.relative_humidity_2m[0]}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Виджет дополнительной информации */}
+            <div className={styles.weatherCard}>
+              <div className={styles.weatherIcon}>📊</div>
+              <div className={styles.weatherInfo}>
+                <span className={styles.weatherLabel}>Дополнительно</span>
+                <div className={styles.additionalDetails}>
+                  <div className={styles.additionalRow}>
+                    <span>Погодный код:</span>
+                    <span>{today.weatherCode}</span>
+                  </div>
+                  <div className={styles.additionalRow}>
+                    <span>Преоб. направление ветра:</span>
+                    <span>{getWindDirection(today.windDirection)}</span>
+                  </div>
+                  <div className={styles.additionalRow}>
+                    <span>Ощущается мин:</span>
+                    <span>{today.feelsLikeMin}°C</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* График изменения влажности */}
         <div className={styles.chartContainer}>

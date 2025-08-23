@@ -8,17 +8,6 @@
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
 }
 
-.weatherImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 1;
-  opacity: 0.7;
-}
-
 .weatherOverlay {
   position: relative;
   z-index: 2;
@@ -32,16 +21,18 @@
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+  margin-bottom: 30px;
   
   .cityName {
-    font-size: larger;
+    font-size: 2.5rem;
     text-align: center;
     font-weight: 700;
+    margin-bottom: 10px;
   }
   
   span {
     display: block;
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     margin-bottom: 8px;
     opacity: 0.9;
   }
@@ -49,74 +40,113 @@
 
 .weatherGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+  margin-bottom: 30px;
 }
 
 .weatherCard {
   background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 20px;
-  text-align: center;
+  display: flex;
+  align-items: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   
   &:hover {
-    transform: translate(-5px, -5px);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
   }
+}
+
+.weatherIcon {
+  font-size: 2.5rem;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.weatherInfo {
+  flex-grow: 1;
+}
+
+.weatherLabel {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 5px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.weatherValue {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+}
+
+.weatherSubtext {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+.windDirection {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.windArrow {
+  display: inline-block;
+  font-size: 1.2rem;
+  margin-right: 8px;
+  transition: transform 0.3s ease;
+}
+
+.windDirectionText {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.tempRange {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.sunTimes {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sunTime {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
   
-  span {
-    display: block;
-    font-size: 1.1rem;
-    margin-bottom: 8px;
-    opacity: 0.9;
-  }
-  
-  p {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin: 0;
+  span:first-child {
+    opacity: 0.8;
   }
 }
 
 .chartContainer {
   margin-top: 30px;
   background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 20px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   
   h3 {
     margin-top: 0;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     text-align: center;
     font-size: 1.2rem;
     color: white;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  }
-}
-
-.customTooltip {
-  background: rgba(0, 0, 0, 0.7);
-  border-radius: 8px;
-  padding: 10px;
-  border: none;
-  text-align: center;
-  
-  .label {
-    margin: 0;
-    font-size: 0.9rem;
-    opacity: 0.8;
-  }
-  
-  .value {
-    margin: 5px 0 0;
-    font-size: 1.2rem;
-    font-weight: bold;
   }
 }
 
@@ -126,12 +156,18 @@
     padding: 25px;
   }
   
-  .cityName {
-    font-size: 2.2rem;
+  .weatherGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
   
-  .weatherGrid {
-    grid-template-columns: 1fr 1fr;
+  .summary {
+    .cityName {
+      font-size: 2rem;
+    }
+    
+    span {
+      font-size: 1.2rem;
+    }
   }
 }
 
@@ -139,29 +175,25 @@
   .weatherOverlay {
     padding: 15px;
   }
-
-  .cityName {
-    font-size: 2.2rem;
-  }
   
   .weatherGrid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
-
+  
   .weatherCard {
-    span {
-      font-size: 0.8rem;
-      margin-bottom: 8px;
-    }
-    
-    p {
-      font-size: 1rem;
-    }
+    padding: 15px;
   }
-
+  
+  .weatherIcon {
+    font-size: 2rem;
+  }
+  
+  .weatherValue {
+    font-size: 1.5rem;
+  }
+  
   .chartContainer {
-    padding: 10px;
+    padding: 15px;
     
     h3 {
       font-size: 1rem;
