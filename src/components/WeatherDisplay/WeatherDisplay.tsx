@@ -70,14 +70,21 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
     return `${hours}ч ${minutes}м`;
   };
 
-  // TODO: сделать типизацию наконец
+  const currentWeather = data.current_weather
+    ? {
+        currentTemp: Math.round(data.current_weather.temperature),
+        weatherCode: data.current_weather.weathercode,
+        windSpeed: data.current_weather.windspeed,
+        windDirection: data.current_weather.winddirection,
+      }
+    : null;
+
   const today = data.daily
     ? {
-        weatherCode: data.current_weather.weathercode,
-        tempMax: data.daily.temperature_2m_max[0],
-        tempMin: data.daily.temperature_2m_min[0],
-        feelsLikeMax: data.daily.apparent_temperature_max[0],
-        feelsLikeMin: data.daily.apparent_temperature_min[0],
+        tempMax: Math.round(data.daily.temperature_2m_max[0]),
+        tempMin: Math.round(data.daily.temperature_2m_min[0]),
+        feelsLikeMax: Math.round(data.daily.apparent_temperature_max[0]),
+        feelsLikeMin: Math.round(data.daily.apparent_temperature_min[0]),
         sunrise: data.daily.sunrise[0],
         sunset: data.daily.sunset[0],
         uvIndex: data.daily.uv_index_max[0],
@@ -100,16 +107,17 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
         )} 100%)`,
       }}
     >
+      {currentWeather && (
       <div className={styles.weatherOverlay}>
         <div className={styles.summary}>
           <h2 className={styles.summary.cityName}>
-            {data.cityName} {getWeatherIcon(data.current_weather.weathercode)}
+            {data.cityName} {getWeatherIcon(currentWeather.weatherCode)}
           </h2>
           <span className={styles.summary.span}>
-            {data.current_weather.temperature}°C
+            {currentWeather.currentTemp} °C
           </span>
           <span className={styles.summary.span}>
-            {getWeatherDescription(data.current_weather.weathercode)}
+            {getWeatherDescription(currentWeather.weatherCode)}
           </span>
         </div>
 
@@ -121,7 +129,7 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
               <div className={styles.weatherInfo}>
                 <span className={styles.weatherLabel}>Температура</span>
                 <p className={styles.weatherValue}>
-                  {data.current_weather.temperature}°C
+                  {currentWeather.currentTemp}°C
                 </p>
                 <div className={styles.tempDetails}>
                   <div className={styles.tempRow}>
@@ -146,7 +154,7 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
               <div className={styles.weatherInfo}>
                 <span className={styles.weatherLabel}>Ветер</span>
                 <p className={styles.weatherValue}>
-                  {data.current_weather.windspeed} км/ч
+                  {currentWeather.windSpeed} км/ч
                 </p>
                 <div className={styles.windDetails}>
                   <div className={styles.windRow}>
@@ -161,13 +169,13 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                     <span
                       className={styles.windArrow}
                       style={{
-                        transform: `rotate(${data.current_weather.winddirection}deg)`,
+                        transform: `rotate(${currentWeather.windDirection}deg)`,
                       }}
                     >
                       ↑
                     </span>
                     <span className={styles.windDirectionText}>
-                      {getWindDirection(data.current_weather.winddirection)}
+                      {getWindDirection(currentWeather.windDirection)}
                     </span>
                   </div>
                 </div>
@@ -228,8 +236,8 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                 <span className={styles.weatherLabel}>Дополнительно</span>
                 <div className={styles.additionalDetails}>
                   <div className={styles.additionalRow}>
-                    <span>Погодный код:</span>
-                    <span>{today.weatherCode}</span>
+                    <span>Длительность светового дня:</span>
+                    <span>{calculateDaylightDuration()}</span>
                   </div>
                   <div className={styles.additionalRow}>
                     <span>Преоб. направление ветра:</span>
@@ -314,7 +322,7 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                         }}
                       >
                         <p>{`${payload[0].payload.time}`}</p>
-                        <p>{`Влажность: ${payload[0].value}%`}</p>
+                        <p>{`Температура: ${payload[0].value}°C`}</p>
                       </div>
                     );
                   }
@@ -338,7 +346,9 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
           </ResponsiveContainer>
         </div>
       </div>
+       )}
     </div>
+             
   );
 };
 

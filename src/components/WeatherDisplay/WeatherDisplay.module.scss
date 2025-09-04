@@ -97,6 +97,12 @@
   margin-top: 5px;
 }
 
+.windRow {
+  span {
+    margin-right: 5px;
+  }
+}
+
 .windArrow {
   display: inline-block;
   font-size: 1.2rem;
@@ -116,6 +122,12 @@
   opacity: 0.8;
 }
 
+.tempRow {
+  span {
+    margin-right: 5px;
+  }
+}
+
 .sunTimes {
   display: flex;
   flex-direction: column;
@@ -131,6 +143,26 @@
     opacity: 0.8;
   }
 }
+
+.sunRow {
+  span {
+    margin-right: 5px;
+  }
+}
+
+.precipitationRow {
+  span {
+    margin-right: 5px;
+  }
+}
+
+.additionalRow {
+  span {
+    margin-right: 5px;
+  }
+}
+
+
 
 .chartContainer {
   margin-top: 30px;
