@@ -23,16 +23,15 @@
   justify-content: space-around;
   margin-bottom: 30px;
   
-  .cityName {
+  h2 {
     font-size: 2.5rem;
     text-align: center;
-    font-weight: 700;
     margin-bottom: 10px;
   }
   
   span {
     display: block;
-    font-size: 1.5rem;
+    font-size: 2rem;
     margin-bottom: 8px;
     opacity: 0.9;
   }
@@ -45,17 +44,16 @@
   margin-bottom: 30px;
 }
 
-// TODO: пофиксить флекс для красивого отображения иконки и информации
 .weatherCard {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 20px;
-  //display: flex;
+  min-width: 40px;
   align-items: center;
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-  
+  display: flex;
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
@@ -64,8 +62,9 @@
 
 .weatherIcon {
   font-size: 2.5rem;
-  margin-right: 15px;
+  margin-right: 10px;
   flex-shrink: 0;
+  order: 1;
 }
 
 .weatherInfo {
@@ -162,16 +161,16 @@
   
   .summary {
     .cityName {
-      font-size: 2rem;
+      font-size: 4rem;
     }
     
     span {
-      font-size: 1.2rem;
+      font-size: 2rem;
     }
   }
 }
 
-@media (max-width: 510px) {
+@media (max-width: 600px) {
   .weatherOverlay {
     padding: 15px;
   }
@@ -185,7 +184,7 @@
   }
   
   .weatherIcon {
-    font-size: 2rem;
+    font-size: 4rem;
   }
   
   .weatherValue {
