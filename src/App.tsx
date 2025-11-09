@@ -10,15 +10,13 @@ interface WeatherData {
   // Добавьте сюда реальные поля, которые возвращает API
   // Например, current_weather, daily, hourly и т.д.
   current_weather: {
-    temperature_2m: number;
-    relative_humidity_2m: number;
+    time: string;
+    interval: number;
+    temperature: number;
+    windspeed: number;
+    winddirection: number;
     is_day: number;
-    wind_speed_10m: number;
-    wind_direction_10m: number;
-    wind_gusts_10m: number;
-    rain: number;
-    weather_code: number;
-    precipitation: number;
+    weathercode: number;
   };
   daily: {
     time: string[];
@@ -28,10 +26,16 @@ interface WeatherData {
     sunrise: string[];
     sunset: string[];
     uv_index_max: number[];
+    uv_index_clear_sky_max: number[]; // Добавлено
     rain_sum: number[];
     showers_sum: number[];
     snowfall_sum: number[];
     wind_speed_10m_max: number[];
+    wind_gusts_10m_max: number[]; // Добавлено
+    wind_direction_10m_dominant: number[]; // Добавлено
+    shortwave_radiation_sum: number[]; // Добавлено
+    precipitation_sum: number[]; // Добавлено
+    precipitation_hours: number[]; // Добавлено
   };
   hourly: {
     time: string[];
@@ -42,6 +46,7 @@ interface WeatherData {
     snowfall: number[];
   };
   timezone: string;
+  timezone_abbreviation: string; // Добавлено
   generationtime_ms: number;
   elevation: number;
   latitude: number;
@@ -65,7 +70,10 @@ const App: React.FC = () => {
 
   const { data: weatherData, isLoading, error } = useQuery<WeatherData>(
     ['weather', currentCity.latitude, currentCity.longitude],
-    () => fetchWeather(currentCity.latitude, currentCity.longitude),
+    async () => {
+      const data = await fetchWeather(currentCity.latitude, currentCity.longitude);
+      return { ...data, cityName: currentCity.name };
+    },
     { staleTime: 5 * 60 * 1000 } // Данные считаются свежими в течение 5 минут
   );
 

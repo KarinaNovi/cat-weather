@@ -1,0 +1,25 @@
+@import "../../styles/commonWidgets";
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.windDirection {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.windArrow {
+  font-size: 20px;
+  line-height: 1;
+  display: block;
+}
+
+.windDirectionText {
+  font-weight: 500;
+}

@@ -5,8 +5,13 @@ import {
   getWeatherIcon,
   getWindDirection,
 } from "../../utils/weatherUtils";
-import { AreaChart, Area, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, Tooltip, ResponsiveContainer, XAxis, ReferenceLine } from "recharts";
 import styles from "./WeatherDisplay.module.scss";
+import SunriseSunsetWidget from '../SunriseSunsetWidget/SunriseSunsetWidget';
+import TemperatureWidget from '../TemperatureWidget/TemperatureWidget';
+import WindWidget from '../WindWidget/WindWidget';
+import PrecipitationWidget from '../PrecipitationWidget/PrecipitationWidget';
+import AdditionalInfoWidget from '../AdditionalInfoWidget/AdditionalInfoWidget';
 
 const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
   data,
@@ -26,26 +31,58 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
   };
 
   const prepareChartData = () => {
-    const currentTime = new Date(data.current_weather.time);
-    const currentHour = currentTime.getHours();
-    const startIndex =
-      data.hourly.time.findIndex(
-        (time: string) => new Date(time).getHours() === currentHour
-      ) || 0;
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentDay = now.getDate();
+    const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000; // Разница в мс от UTC
+    const timezone = data.timezone; // Часовой пояс из API
 
-    return data.hourly.time
-      .slice(startIndex, startIndex + 24)
-      .map((time: string, index: number) => {
-        const date = new Date(time);
-        return {
-          fullTime: date,
-          time: `${date.getHours()}:00`,
-          humidity: data.hourly.relative_humidity_2m[startIndex + index],
-          temperature: data.hourly.temperature_2m?.[startIndex + index] || 0,
-          windspeed: data.hourly.windspeed_10m?.[startIndex + index] || 0,
-        };
-      })
-      .sort((a, b) => a.fullTime - b.fullTime); // Сортируем по времени
+    if (!data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
+      return [];
+    }
+
+    const chartHours: any[] = [];
+    const allHourlyTimes = data.hourly.time;
+    const allHourlyTemperatures = data.hourly.temperature_2m || [];
+    const allHourlyHumidity = data.hourly.relative_humidity_2m || [];
+    const allHourlyWindspeed = data.hourly.windspeed_10m || [];
+
+    // Находим индекс начала текущего дня (00:00)
+    let startIndex = allHourlyTimes.findIndex(time => {
+      const date = new Date(time);
+      return date.getDate() === currentDay && date.getHours() === 0;
+    });
+
+    // Если не нашли 00:00 текущего дня, начинаем с первого доступного часа
+    if (startIndex === -1) {
+      startIndex = 0;
+    }
+
+    // Определяем конец графика - 24 часа следующего дня
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
+
+    const endIndex = allHourlyTimes.findIndex(time => new Date(time) > endDate);
+    const finalEndIndex = endIndex !== -1 ? endIndex : allHourlyTimes.length;
+
+
+    for (let i = startIndex; i < finalEndIndex; i++) {
+      const time = allHourlyTimes[i];
+      const date = new Date(time);
+
+      const isPast = date.getTime() < now.getTime(); // Сравниваем с текущим временем в локальном часовом поясе
+      chartHours.push({
+        fullTime: date,
+        time: `${date.getHours()}:00`,
+        humidity: allHourlyHumidity[i] || 0,
+        temperature: allHourlyTemperatures[i] || 0,
+        windspeed: allHourlyWindspeed[i] || 0,
+        isPast,
+      });
+    }
+
+    return chartHours.sort((a, b) => a.fullTime - b.fullTime);
   };
 
   const chartData = prepareChartData();
@@ -72,10 +109,10 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
 
   const currentWeather = data.current_weather
     ? {
-        currentTemp: Math.round(data.current_weather.temperature),
-        weatherCode: data.current_weather.weathercode,
-        windSpeed: data.current_weather.windspeed,
-        windDirection: data.current_weather.winddirection,
+        currentTemp: Math.round(data.current_weather.temperature ?? 0),
+        weatherCode: data.current_weather.weathercode ?? 0,
+        windSpeed: data.current_weather.windspeed ?? 0,
+        windDirection: data.current_weather.winddirection ?? 0,
       }
     : null;
 
@@ -124,132 +161,40 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
         {today && (
           <div className={styles.weatherGrid}>
             {/* Виджет температуры */}
-            <div className={styles.weatherCard}>
-              <div className={styles.weatherIcon}>🌡️</div>
-              <div className={styles.weatherInfo}>
-                <span className={styles.weatherLabel}>Температура</span>
-                <p className={styles.weatherValue}>
-                  {currentWeather.currentTemp}°C
-                </p>
-                <div className={styles.tempDetails}>
-                  <div className={styles.tempRow}>
-                    <span>Макс:</span>
-                    <span>{today.tempMax}°C</span>
-                  </div>
-                  <div className={styles.tempRow}>
-                    <span>Мин:</span>
-                    <span>{today.tempMin}°C</span>
-                  </div>
-                  <div className={styles.tempRow}>
-                    <span>Ощущается:</span>
-                    <span>{today.feelsLikeMax}°C</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TemperatureWidget
+              currentTemp={currentWeather.currentTemp}
+              tempMax={today.tempMax}
+              tempMin={today.tempMin}
+              feelsLikeMax={today.feelsLikeMax}
+            />
 
             {/* Виджет ветра */}
-            <div className={styles.weatherCard}>
-              <div className={styles.weatherIcon}>🌬️</div>
-              <div className={styles.weatherInfo}>
-                <span className={styles.weatherLabel}>Ветер</span>
-                <p className={styles.weatherValue}>
-                  {currentWeather.windSpeed} км/ч
-                </p>
-                <div className={styles.windDetails}>
-                  <div className={styles.windRow}>
-                    <span>Порывы:</span>
-                    <span>{today.windGustsMax} км/ч</span>
-                  </div>
-                  <div className={styles.windRow}>
-                    <span>Макс:</span>
-                    <span>{today.windSpeedMax} км/ч</span>
-                  </div>
-                  <div className={styles.windDirection}>
-                    <span
-                      className={styles.windArrow}
-                      style={{
-                        transform: `rotate(${currentWeather.windDirection}deg)`,
-                      }}
-                    >
-                      ↑
-                    </span>
-                    <span className={styles.windDirectionText}>
-                      {getWindDirection(currentWeather.windDirection)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <WindWidget
+              windSpeed={currentWeather.windSpeed}
+              windGustsMax={today.windGustsMax}
+              windSpeedMax={today.windSpeedMax}
+              windDirection={currentWeather.windDirection}
+            />
 
-            {/* Виджет солнца */}
-            <div className={styles.weatherCard}>
-              <div className={styles.weatherIcon}>☀️</div>
-              <div className={styles.weatherInfo}>
-                <span className={styles.weatherLabel}>Солнце</span>
-                <div className={styles.sunDetails}>
-                  <div className={styles.sunRow}>
-                    <span>Восход:</span>
-                    <span>{formatTime(today.sunrise)}</span>
-                  </div>
-                  <div className={styles.sunRow}>
-                    <span>Закат:</span>
-                    <span>{formatTime(today.sunset)}</span>
-                  </div>
-                  <div className={styles.sunRow}>
-                    <span>UV индекс:</span>
-                    <span>{today.uvIndex}</span>
-                  </div>
-                  <div className={styles.sunRow}>
-                    <span>Солнечная радиация:</span>
-                    <span>
-                      {Math.round(today.solarRadiation / 100) / 10} кВт/м²
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Виджет восхода и захода солнца */}
+            <SunriseSunsetWidget
+              sunrise={today.sunrise}
+              sunset={today.sunset}
+            />
 
             {/* Виджет осадков */}
-            <div className={styles.weatherCard}>
-              <div className={styles.weatherIcon}>🌧️</div>
-              <div className={styles.weatherInfo}>
-                <span className={styles.weatherLabel}>Осадки</span>
-                <p className={styles.weatherValue}>{today.precipitation} мм</p>
-                <div className={styles.precipitationDetails}>
-                  <div className={styles.precipitationRow}>
-                    <span>Часы с осадками:</span>
-                    <span>{today.precipitationHours} ч</span>
-                  </div>
-                  <div className={styles.precipitationRow}>
-                    <span>Влажность:</span>
-                    <span>{data.hourly.relative_humidity_2m[0]}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <PrecipitationWidget
+              precipitation={today.precipitation}
+              precipitationHours={today.precipitationHours}
+              humidity={data.hourly.relative_humidity_2m[0]}
+            />
 
             {/* Виджет дополнительной информации */}
-            <div className={styles.weatherCard}>
-              <div className={styles.weatherIcon}>📊</div>
-              <div className={styles.weatherInfo}>
-                <span className={styles.weatherLabel}>Дополнительно</span>
-                <div className={styles.additionalDetails}>
-                  <div className={styles.additionalRow}>
-                    <span>Длительность светового дня:</span>
-                    <span>{calculateDaylightDuration()}</span>
-                  </div>
-                  <div className={styles.additionalRow}>
-                    <span>Преоб. направление ветра:</span>
-                    <span>{getWindDirection(today.windDirection)}</span>
-                  </div>
-                  <div className={styles.additionalRow}>
-                    <span>Ощущается мин:</span>
-                    <span>{today.feelsLikeMin}°C</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <AdditionalInfoWidget
+              daylightDuration={calculateDaylightDuration()}
+              windDirectionDominant={today.windDirection}
+              feelsLikeMin={today.feelsLikeMin}
+            />
           </div>
         )}
 
@@ -261,6 +206,18 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
               data={chartData}
               margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
             >
+              <XAxis 
+                dataKey="time" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#fff', fontSize: 10 }} 
+              />
+              <ReferenceLine 
+                x={`${new Date().getHours()}:00`} 
+                stroke="#fff" 
+                strokeDasharray="3 3" 
+                position="end"
+              />
               <Tooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
@@ -295,6 +252,18 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                   r: 5,
                   fill: "#8884d8",
                 }}
+                isAnimationActive={false}
+                data={chartData.filter(d => !d.isPast)}
+              />
+              <Area
+                type="monotone"
+                dataKey="humidity"
+                stroke="#8884d8"
+                fill="rgba(136, 132, 216, 0.1)"
+                strokeWidth={2}
+                activeDot={false}
+                isAnimationActive={false}
+                data={chartData.filter(d => d.isPast)}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -307,6 +276,18 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
               data={chartData}
               margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
             >
+              <XAxis 
+                dataKey="time" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#fff', fontSize: 10 }} 
+              />
+              <ReferenceLine 
+                x={`${new Date().getHours()}:00`} 
+                stroke="#fff" 
+                strokeDasharray="3 3" 
+                position="end"
+              />
               <Tooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
@@ -341,6 +322,88 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                   r: 5,
                   fill: "#8884d8",
                 }}
+                isAnimationActive={false}
+                data={chartData.filter(d => !d.isPast)}
+              />
+              <Area
+                type="monotone"
+                dataKey="temperature"
+                stroke="#8884d8"
+                fill="rgba(136, 132, 216, 0.1)"
+                strokeWidth={2}
+                activeDot={false}
+                isAnimationActive={false}
+                data={chartData.filter(d => d.isPast)}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+        {/* График изменения скорости ветра */}
+        <div className={styles.chartContainer}>
+          <h3>Скорость ветра</h3>
+          <ResponsiveContainer width="100%" height={60}>
+            <AreaChart
+              data={chartData}
+              margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
+            >
+              <XAxis
+                dataKey="time"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#fff', fontSize: 10 }}
+              />
+              <ReferenceLine
+                x={`${new Date().getHours()}:00`}
+                stroke="#fff"
+                strokeDasharray="3 3"
+                position="end"
+              />
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div
+                        style={{
+                          background: "rgba(0, 0, 0, 0.7)",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "5px 10px",
+                          color: "white",
+                          fontSize: "12px",
+                        }}
+                      >
+                        <p>{`${payload[0].payload.time}`}</p>
+                        <p>{`Скорость ветра: ${payload[0].value} км/ч`}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="windspeed"
+                stroke="#ffc658"
+                fill="rgba(255, 198, 88, 0.3)"
+                strokeWidth={2}
+                activeDot={{
+                  stroke: "#fff",
+                  strokeWidth: 2,
+                  r: 5,
+                  fill: "#ffc658",
+                }}
+                isAnimationActive={false}
+                data={chartData.filter(d => !d.isPast)}
+              />
+              <Area
+                type="monotone"
+                dataKey="windspeed"
+                stroke="#ffc658"
+                fill="rgba(255, 198, 88, 0.1)"
+                strokeWidth={2}
+                activeDot={false}
+                isAnimationActive={false}
+                data={chartData.filter(d => d.isPast)}
               />
             </AreaChart>
           </ResponsiveContainer>
