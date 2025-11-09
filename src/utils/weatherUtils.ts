@@ -6,6 +6,24 @@ import rainyIcon from "../assets/weather-icons/rainyIcon.jpeg";
 import drizzleIcon from "../assets/weather-icons/drizzleIcon.jpeg";
 import windyIcon from "../assets/weather-icons/windyIcon.jpeg";
 import tornadoIcon from "../assets/weather-icons/tornadoIcon.jpeg";
+// import freezingDrizzle from "../assets/weather-icons/freezing-drizzle.jpg"; // Отсутствует
+const freezingDrizzle = cleanSkyIcon;
+// import heavyRain from "../assets/weather-icons/heavy-rain.jpg"; // Отсутствует
+const heavyRain = cleanSkyIcon;
+// import freezingRain from "../assets/weather-icons/freezing-rain.jpg"; // Отсутствует
+const freezingRain = cleanSkyIcon;
+// import heavySnow from "../assets/weather-icons/heavy-snow.jpg"; // Отсутствует
+const heavySnow = cleanSkyIcon;
+// import snowGrains from "../assets/weather-icons/snow-grains.jpg"; // Отсутствует
+const snowGrains = cleanSkyIcon;
+// import showers from "../assets/weather-icons/showers.jpg"; // Отсутствует
+const showers = cleanSkyIcon;
+// import heavyShowers from "../assets/weather-icons/heavy-showers.jpg"; // Отсутствует
+const heavyShowers = cleanSkyIcon;
+// import snowShowers from "../assets/weather-icons/snow-showers.jpg"; // Отсутствует
+const snowShowers = cleanSkyIcon;
+// import thunderstormHail from "../assets/weather-icons/thunderstorm-hail.jpg"; // Отсутствует
+const thunderstormHail = cleanSkyIcon;
 
 export const getWeatherImage = (code: number): string => {
   const imageMap: Record<number, string> = {
@@ -18,25 +36,25 @@ export const getWeatherImage = (code: number): string => {
     51: drizzleIcon,
     53: drizzleIcon,
     55: drizzleIcon,
-    56: '/assets/weather-icons/freezing-drizzle.jpg',
-    57: '/assets/weather-icons/freezing-drizzle.jpg',
+    56: freezingDrizzle,
+    57: freezingDrizzle,
     61: rainyIcon,
     63: rainyIcon,
-    65: '/assets/weather-icons/heavy-rain.jpg',
-    66: '/assets/weather-icons/freezing-rain.jpg',
-    67: '/assets/weather-icons/freezing-rain.jpg',
+    65: heavyRain,
+    66: freezingRain,
+    67: freezingRain,
     71: snowIcon,
     73: snowIcon,
-    75: '/assets/weather-icons/heavy-snow.jpg',
-    77: '/assets/weather-icons/snow-grains.jpg',
-    80: '/assets/weather-icons/showers.jpg',
-    81: '/assets/weather-icons/showers.jpg',
-    82: '/assets/weather-icons/heavy-showers.jpg',
-    85: '/assets/weather-icons/snow-showers.jpg',
-    86: '/assets/weather-icons/snow-showers.jpg',
+    75: heavySnow,
+    77: snowGrains,
+    80: showers,
+    81: showers,
+    82: heavyShowers,
+    85: snowShowers,
+    86: snowShowers,
     95: thunderIcon,
-    96: '/assets/weather-icons/thunderstorm-hail.jpg',
-    99: '/assets/weather-icons/thunderstorm-hail.jpg',
+    96: thunderstormHail,
+    99: thunderstormHail,
   };
   
   return imageMap[code] || cleanSkyIcon; // fallback
