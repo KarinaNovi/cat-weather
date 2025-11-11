@@ -18,6 +18,11 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
   image,
 }) => {
   const [bgColor, setBgColor] = useState("#87CEEB");
+  const [isHovering, setIsHovering] = useState<{ [key: string]: boolean }>({
+    temperature: false,
+    humidity: false,
+    windspeed: false,
+  });
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -30,62 +35,57 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
       .catch(() => setBgColor("#87CEEB"));
   };
 
+  // Вспомогательная функция для пересчета utc_offset_seconds в миллисекунды
+  const applyOffset = (dateString, offsetSeconds) => {
+    const date = new Date(dateString);
+    return new Date(date.getTime() + 1000 * offsetSeconds);
+  };
+
+  // Подготавливаем chartData с учетом utc_offset_seconds
   const prepareChartData = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentDay = now.getDate();
-    const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000; // Разница в мс от UTC
-    const timezone = data.timezone; // Часовой пояс из API
-
-    if (!data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
-      return [];
-    }
-
-    const chartHours: any[] = [];
-    const allHourlyTimes = data.hourly.time;
-    const allHourlyTemperatures = data.hourly.temperature_2m || [];
-    const allHourlyHumidity = data.hourly.relative_humidity_2m || [];
-    const allHourlyWindspeed = data.hourly.windspeed_10m || [];
-
-    // Находим индекс начала текущего дня (00:00)
-    let startIndex = allHourlyTimes.findIndex(time => {
-      const date = new Date(time);
-      return date.getDate() === currentDay && date.getHours() === 0;
+    if (!data.hourly || !data.hourly.time) return [];
+    const offset = data.utc_offset_seconds || 0;
+    return data.hourly.time.map((time, i) => {
+      // API возвращает время в ISO формате (UTC), конвертируем в локальное время города
+      const utcDate = new Date(time);
+      const cityDate = new Date(utcDate.getTime() + offset * 1000);
+      
+      const day = cityDate.getDate().toString().padStart(2, '0');
+      const month = (cityDate.getMonth() + 1).toString().padStart(2, '0');
+      const timeStr = cityDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      
+      return {
+        fullTime: cityDate,
+        timestamp: cityDate.getTime(), // Для Recharts
+        displayTime: `${day}.${month} ${timeStr}`,
+        humidity: Math.round(data.hourly.relative_humidity_2m?.[i] ?? 0),
+        temperature: Math.round(data.hourly.temperature_2m?.[i] ?? 0),
+        windspeed: Math.round(data.hourly.windspeed_10m?.[i] ?? 0),
+      };
     });
-
-    // Если не нашли 00:00 текущего дня, начинаем с первого доступного часа
-    if (startIndex === -1) {
-      startIndex = 0;
-    }
-
-    // Определяем конец графика - 24 часа следующего дня
-    const endDate = new Date(now);
-    endDate.setDate(endDate.getDate() + 1);
-    endDate.setHours(23, 59, 59, 999);
-
-    const endIndex = allHourlyTimes.findIndex(time => new Date(time) > endDate);
-    const finalEndIndex = endIndex !== -1 ? endIndex : allHourlyTimes.length;
-
-
-    for (let i = startIndex; i < finalEndIndex; i++) {
-      const time = allHourlyTimes[i];
-      const date = new Date(time);
-
-      const isPast = date.getTime() < now.getTime(); // Сравниваем с текущим временем в локальном часовом поясе
-      chartHours.push({
-        fullTime: date,
-        time: `${date.getHours()}:00`,
-        humidity: allHourlyHumidity[i] || 0,
-        temperature: allHourlyTemperatures[i] || 0,
-        windspeed: allHourlyWindspeed[i] || 0,
-        isPast,
-      });
-    }
-
-    return chartHours.sort((a, b) => a.fullTime - b.fullTime);
   };
 
   const chartData = prepareChartData();
+  
+  // Используем текущее время из current_weather.time - оно уже в часовом поясе города
+  const nowCity = data.current_weather?.time 
+    ? new Date(data.current_weather.time) 
+    : new Date();
+  
+  // Находим индекс первой точки, которая >= текущего времени города
+  let currentChartIdx = chartData.findIndex(d => d.fullTime.getTime() >= nowCity.getTime());
+  if (currentChartIdx === -1) currentChartIdx = chartData.length; // всё прошлое
+  
+  // Определяем время для ReferenceLine (используем ближайшую точку к текущему времени)
+  const currentChartTime = currentChartIdx < chartData.length 
+    ? chartData[currentChartIdx]?.fullTime 
+    : (chartData.length > 0 ? chartData[chartData.length - 1]?.fullTime : null);
+  
+  // pastData включает все точки до текущей включительно (для непрерывности линии)
+  const pastData = currentChartIdx >= 0 ? chartData.slice(0, currentChartIdx + 1) : [];
+  // futureData всегда начиная с текущей точки (может быть весь массив, если всё будущее)
+  // Включаем текущую точку для непрерывности линии
+  const futureData = chartData.slice(currentChartIdx >= 0 ? currentChartIdx : 0);
 
   const formatTime = (timeString: string) => {
     return new Date(timeString).toLocaleTimeString("ru-RU", {
@@ -134,6 +134,52 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
       }
     : null;
 
+  // УНИВЕРСАЛЬНЫЙ КАСТОМНЫЙ TOOLTIP
+  const CustomTooltip = ({active, payload, label, chartData, currentChartIdx, param, isHovering}: {
+    active?: boolean;
+    payload?: any[];
+    label?: any;
+    chartData: any[];
+    currentChartIdx: number;
+    param: string;
+    isHovering: boolean;
+  }) => {
+    // Если активно наведение - показываем точку, на которую навели
+    if (active && isHovering && payload && payload.length && payload[0].payload) {
+      const point = payload[0].payload;
+      let value;
+      if(param==='temperature') value = `${point.temperature}°C`;
+      else if(param==='humidity') value = `${point.humidity}%`;
+      else if(param==='windspeed') value = `${point.windspeed} км/ч`;
+      return (
+        <div style={{ background: 'rgba(0,0,0,0.92)', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 16, textAlign: 'center', minWidth: 70 }}>
+          <b style={{ fontSize: 18 }}>{point.displayTime}</b>
+          <div style={{ fontSize: 22, margin: 4 }}><b>{value}</b></div>
+        </div>
+      );
+    }
+    
+    // По умолчанию показываем текущее время (когда не наведено)
+    if (!isHovering) {
+      const idx = currentChartIdx < chartData.length ? currentChartIdx : Math.max(0, chartData.length - 1);
+      const point = chartData[idx];
+      if (!point) return null;
+      
+      let value;
+      if(param==='temperature') value = `${point.temperature}°C`;
+      else if(param==='humidity') value = `${point.humidity}%`;
+      else if(param==='windspeed') value = `${point.windspeed} км/ч`;
+      return (
+        <div style={{ background: 'rgba(0,0,0,0.92)', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 16, textAlign: 'center', minWidth: 70 }}>
+          <b style={{ fontSize: 18 }}>{point.displayTime}</b>
+          <div style={{ fontSize: 22, margin: 4 }}><b>{value}</b></div>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <div
       className={styles.weatherContainer}
@@ -147,13 +193,13 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
       {currentWeather && (
       <div className={styles.weatherOverlay}>
         <div className={styles.summary}>
-          <h2 className={styles.summary.cityName}>
+          <h2 className={styles.cityName}>
             {data.cityName} {getWeatherIcon(currentWeather.weatherCode)}
           </h2>
-          <span className={styles.summary.span}>
+          <span className={styles.span}>
             {currentWeather.currentTemp} °C
           </span>
-          <span className={styles.summary.span}>
+          <span className={styles.span}>
             {getWeatherDescription(currentWeather.weatherCode)}
           </span>
         </div>
@@ -199,212 +245,157 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
         )}
 
         {/* График изменения влажности */}
-        <div className={styles.chartContainer}>
-          <h3>Влажность</h3>
-          <ResponsiveContainer width="100%" height={60}>
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
-            >
-              <XAxis 
-                dataKey="time" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#fff', fontSize: 10 }} 
-              />
-              <ReferenceLine 
-                x={`${new Date().getHours()}:00`} 
-                stroke="#fff" 
-                strokeDasharray="3 3" 
-                position="end"
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div
-                        style={{
-                          background: "rgba(0, 0, 0, 0.7)",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "5px 10px",
-                          color: "white",
-                          fontSize: "12px",
-                        }}
-                      >
-                        <p>{`${payload[0].payload.time}`}</p>
-                        <p>{`Влажность: ${payload[0].value}%`}</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="humidity"
-                stroke="#8884d8"
-                fill="rgba(136, 132, 216, 0.3)"
-                strokeWidth={2}
-                activeDot={{
-                  stroke: "#fff",
-                  strokeWidth: 2,
-                  r: 5,
-                  fill: "#8884d8",
-                }}
-                isAnimationActive={false}
-                data={chartData.filter(d => !d.isPast)}
-              />
-              <Area
-                type="monotone"
-                dataKey="humidity"
-                stroke="#8884d8"
-                fill="rgba(136, 132, 216, 0.1)"
-                strokeWidth={2}
-                activeDot={false}
-                isAnimationActive={false}
-                data={chartData.filter(d => d.isPast)}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        {/* График изменения температуры */}
-        <div className={styles.chartContainer}>
+        <div 
+          className={styles.chartContainer}
+          onMouseEnter={() => setIsHovering(prev => ({ ...prev, temperature: true }))}
+          onMouseLeave={() => setIsHovering(prev => ({ ...prev, temperature: false }))}
+        >
           <h3>Температура</h3>
-          <ResponsiveContainer width="100%" height={60}>
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
-            >
-              <XAxis 
-                dataKey="time" 
-                axisLine={false} 
-                tickLine={false} 
-                tick={{ fill: '#fff', fontSize: 10 }} 
-              />
-              <ReferenceLine 
-                x={`${new Date().getHours()}:00`} 
-                stroke="#fff" 
-                strokeDasharray="3 3" 
-                position="end"
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div
-                        style={{
-                          background: "rgba(0, 0, 0, 0.7)",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "5px 10px",
-                          color: "white",
-                          fontSize: "12px",
-                        }}
-                      >
-                        <p>{`${payload[0].payload.time}`}</p>
-                        <p>{`Температура: ${payload[0].value}°C`}</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="temperature"
-                stroke="#8884d8"
-                fill="rgba(136, 132, 216, 0.3)"
-                strokeWidth={2}
-                activeDot={{
-                  stroke: "#fff",
-                  strokeWidth: 2,
-                  r: 5,
-                  fill: "#8884d8",
-                }}
-                isAnimationActive={false}
-                data={chartData.filter(d => !d.isPast)}
-              />
-              <Area
-                type="monotone"
-                dataKey="temperature"
-                stroke="#8884d8"
-                fill="rgba(136, 132, 216, 0.1)"
-                strokeWidth={2}
-                activeDot={false}
-                isAnimationActive={false}
-                data={chartData.filter(d => d.isPast)}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-        {/* График изменения скорости ветра */}
-        <div className={styles.chartContainer}>
-          <h3>Скорость ветра</h3>
-          <ResponsiveContainer width="100%" height={60}>
-            <AreaChart
-              data={chartData}
-              margin={{ top: 5, right: 0, left: 0, bottom: 0 }}
-            >
+          <ResponsiveContainer width="100%" height={90}>
+            <AreaChart data={chartData} margin={{top:5,right:0,left:0,bottom:0}}>
               <XAxis
-                dataKey="time"
+                dataKey='timestamp'
+                type='number'
+                scale='time'
+                domain={['dataMin', 'dataMax']}
+                tickFormatter={v => new Date(v).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#fff', fontSize: 10 }}
+                tick={{fill:'#fff', fontSize:12}}
               />
-              <ReferenceLine
-                x={`${new Date().getHours()}:00`}
-                stroke="#fff"
-                strokeDasharray="3 3"
-                position="end"
+              {currentChartTime && (
+                <ReferenceLine
+                  x={currentChartTime.getTime()}
+                  stroke="#ffffff"
+                  strokeDasharray=""
+                  strokeWidth={3}
+                  ifOverflow="extendDomain"
+                />
+              )}
+              <Tooltip 
+                content={props => (
+                  <CustomTooltip
+                    active={props.active}
+                    payload={props.payload}
+                    label={props.label}
+                    chartData={chartData}
+                    currentChartIdx={currentChartIdx}
+                    param='temperature'
+                    isHovering={isHovering.temperature}
+                  />
+                )}
+                active={true}
               />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div
-                        style={{
-                          background: "rgba(0, 0, 0, 0.7)",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "5px 10px",
-                          color: "white",
-                          fontSize: "12px",
-                        }}
-                      >
-                        <p>{`${payload[0].payload.time}`}</p>
-                        <p>{`Скорость ветра: ${payload[0].value} км/ч`}</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
+              {pastData.length > 0 && (
+                <Area type="monotone" dataKey="temperature" stroke="#b0b0b0" fill="rgba(180,180,180,0.18)" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} data={pastData} />
+              )}
+              {futureData.length > 0 && (
+                <Area type="monotone" dataKey="temperature" stroke="#8884d8" fill="rgba(136,132,216,0.32)" strokeWidth={2} dot={false} activeDot={{stroke:'#fff',strokeWidth:2,r:5,fill:'#8884d8'}} isAnimationActive={false} data={futureData} />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Влажность */}
+        <div 
+          className={styles.chartContainer}
+          onMouseEnter={() => setIsHovering(prev => ({ ...prev, humidity: true }))}
+          onMouseLeave={() => setIsHovering(prev => ({ ...prev, humidity: false }))}
+        >
+          <h3>Влажность</h3>
+          <ResponsiveContainer width="100%" height={60}>
+            <AreaChart data={chartData} margin={{top:5,right:0,left:0,bottom:0}}>
+              <XAxis
+                dataKey='timestamp'
+                type='number'
+                scale='time'
+                domain={['dataMin', 'dataMax']}
+                tickFormatter={v => new Date(v).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}
+                axisLine={false}
+                tickLine={false}
+                tick={{fill:'#fff', fontSize:12}}
               />
-              <Area
-                type="monotone"
-                dataKey="windspeed"
-                stroke="#ffc658"
-                fill="rgba(255, 198, 88, 0.3)"
-                strokeWidth={2}
-                activeDot={{
-                  stroke: "#fff",
-                  strokeWidth: 2,
-                  r: 5,
-                  fill: "#ffc658",
-                }}
-                isAnimationActive={false}
-                data={chartData.filter(d => !d.isPast)}
+              {currentChartTime && (
+                <ReferenceLine
+                  x={currentChartTime.getTime()}
+                  stroke="#ffffff"
+                  strokeDasharray=""
+                  strokeWidth={3}
+                  ifOverflow="extendDomain"
+                />
+              )}
+              <Tooltip 
+                content={props => (
+                  <CustomTooltip
+                    active={props.active}
+                    payload={props.payload}
+                    label={props.label}
+                    chartData={chartData}
+                    currentChartIdx={currentChartIdx}
+                    param='humidity'
+                    isHovering={isHovering.humidity}
+                  />
+                )}
+                active={true}
               />
-              <Area
-                type="monotone"
-                dataKey="windspeed"
-                stroke="#ffc658"
-                fill="rgba(255, 198, 88, 0.1)"
-                strokeWidth={2}
-                activeDot={false}
-                isAnimationActive={false}
-                data={chartData.filter(d => d.isPast)}
+              {pastData.length > 0 && (
+                <Area type="monotone" dataKey="humidity" stroke="#b0b0b0" fill="rgba(180,180,180,0.16)" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} data={pastData} />
+              )}
+              {futureData.length > 0 && (
+                <Area type="monotone" dataKey="humidity" stroke="#8884d8" fill="rgba(136,132,216,0.26)" strokeWidth={2} dot={false} activeDot={{stroke:'#fff',strokeWidth:2,r:5,fill:'#8884d8'}} isAnimationActive={false} data={futureData} />
+              )}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Ветер */}
+        <div 
+          className={styles.chartContainer}
+          onMouseEnter={() => setIsHovering(prev => ({ ...prev, windspeed: true }))}
+          onMouseLeave={() => setIsHovering(prev => ({ ...prev, windspeed: false }))}
+        >
+          <h3>Скорость ветра</h3>
+          <ResponsiveContainer width="100%" height={60}>
+            <AreaChart data={chartData} margin={{top:5,right:0,left:0,bottom:0}}>
+              <XAxis
+                dataKey='timestamp'
+                type='number'
+                scale='time'
+                domain={['dataMin', 'dataMax']}
+                tickFormatter={v => new Date(v).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'})}
+                axisLine={false}
+                tickLine={false}
+                tick={{fill:'#fff', fontSize:12}}
               />
+              {currentChartTime && (
+                <ReferenceLine
+                  x={currentChartTime.getTime()}
+                  stroke="#ffffff"
+                  strokeDasharray=""
+                  strokeWidth={3}
+                  ifOverflow="extendDomain"
+                />
+              )}
+              <Tooltip 
+                content={props => (
+                  <CustomTooltip
+                    active={props.active}
+                    payload={props.payload}
+                    label={props.label}
+                    chartData={chartData}
+                    currentChartIdx={currentChartIdx}
+                    param='windspeed'
+                    isHovering={isHovering.windspeed}
+                  />
+                )}
+                active={true}
+              />
+              {pastData.length > 0 && (
+                <Area type="monotone" dataKey="windspeed" stroke="#b0b0b0" fill="rgba(180,180,180,0.13)" strokeWidth={2} dot={false} activeDot={false} isAnimationActive={false} data={pastData} />
+              )}
+              {futureData.length > 0 && (
+                <Area type="monotone" dataKey="windspeed" stroke="#ffc658" fill="rgba(255,198,88,0.27)" strokeWidth={2} dot={false} activeDot={{stroke:'#fff',strokeWidth:2,r:5,fill:'#ffc658'}} isAnimationActive={false} data={futureData} />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
