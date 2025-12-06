@@ -6,3 +6,9 @@
   gap: 5px;
   margin-top: 10px; 
 }
+
+.sunriseSunsetCard {
+  .icon {
+    background: radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.5), rgba(88, 86, 214, 0.9));
+  }
+}

@@ -23,3 +23,9 @@
 .windDirectionText {
   font-weight: 500;
 }
+
+.sunriseSunsetCard {
+  .icon {
+    background: radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.5), rgba(0, 180, 255, 0.9));
+  }
+}

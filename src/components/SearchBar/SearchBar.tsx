@@ -9,22 +9,39 @@ const SearchBar: React.FC<{ onSelect: (city: any) => void }> = ({ onSelect }) =>
   const debouncedQuery = useDebounce(query, 300);
   const [isLoading, setIsLoading] = useState(false);
 
-useEffect(() => {
-  if (debouncedQuery) {
-      const loadCities = async () => {
-        try {
-          const results = await fetchCities(debouncedQuery);
+  useEffect(() => {
+    if (!debouncedQuery) {
+      setSuggestions([]);
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    const loadCities = async () => {
+      try {
+        const results = await fetchCities(debouncedQuery);
+        if (!cancelled) {
           setSuggestions(results);
-        } catch (error) {
+        }
+      } catch (error) {
+        if (!cancelled) {
           console.error("Failed to fetch cities:", error);
           setSuggestions([]);
         }
-      };
-      
-      loadCities();
-    } else {
-      setSuggestions([]);
-    }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadCities();
+
+    return () => {
+      cancelled = true;
+    };
   }, [debouncedQuery]);
 
       // TODO: Добавить норм лоадер
@@ -37,6 +54,12 @@ useEffect(() => {
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Поиск города..."
       />
+
+      {isLoading && (
+        <div className={styles.loader} aria-hidden="true">
+          <div className={styles.spinner} />
+        </div>
+      )}
 
 {suggestions.length > 0 && !isLoading && (
         <ul className={styles.suggestions}>

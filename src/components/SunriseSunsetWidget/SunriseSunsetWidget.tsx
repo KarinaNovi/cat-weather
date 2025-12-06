@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './SunriseSunsetWidget.module.scss';
+import { getDaylightDuration } from '../../utils/timeUtils';
 
 interface SunriseSunsetWidgetProps {
   sunrise: string;
@@ -12,17 +13,6 @@ const SunriseSunsetWidget: React.FC<SunriseSunsetWidgetProps> = ({ sunrise, suns
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const calculateDaylightDuration = () => {
-    const sunriseDate = new Date(sunrise);
-    const sunsetDate = new Date(sunset);
-    const duration = sunsetDate.getTime() - sunriseDate.getTime();
-
-    const hours = Math.floor(duration / (1000 * 60 * 60));
-    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
-
-    return `${hours}ч ${minutes}м`;
   };
 
   return (
@@ -40,7 +30,7 @@ const SunriseSunsetWidget: React.FC<SunriseSunsetWidgetProps> = ({ sunrise, suns
         </div>
         <div className={styles.row}>
           <span>Длительность дня:</span>
-          <span>{calculateDaylightDuration()}</span>
+          <span>{getDaylightDuration(sunrise, sunset)}</span>
         </div>
       </div>
     </div>

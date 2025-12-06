@@ -117,8 +117,23 @@ export  const getWeatherIcon = (code: number) => {
     return icons[code] || '🌈';
   };
 
-    export const getWindDirection = (degrees: number) => {
+export const getWindDirection = (degrees: number) => {
     const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
     const index = Math.round(degrees / 45) % 8;
     return directions[index];
   };
+
+// Фаза Луны по значению из Open-Meteo (0–1)
+export const getMoonPhaseInfo = (phase: number): { name: string; icon: string } => {
+  // Нормализуем в диапазон 0–1
+  const p = ((phase % 1) + 1) % 1;
+
+  if (p < 0.03 || p > 0.97) return { name: "Новолуние", icon: "🌑" };
+  if (p < 0.22) return { name: "Растущий месяц", icon: "🌒" };
+  if (p < 0.28) return { name: "Первая четверть", icon: "🌓" };
+  if (p < 0.47) return { name: "Прибывающая луна", icon: "🌔" };
+  if (p < 0.53) return { name: "Полнолуние", icon: "🌕" };
+  if (p < 0.72) return { name: "Убывающая луна", icon: "🌖" };
+  if (p < 0.78) return { name: "Последняя четверть", icon: "🌗" };
+  return { name: "Старая луна", icon: "🌘" };
+};

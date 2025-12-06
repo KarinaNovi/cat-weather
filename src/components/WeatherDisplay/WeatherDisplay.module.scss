@@ -27,47 +27,75 @@
   margin-bottom: 20px;
 
   .cityName {
-    font-size: 28px;
-    font-weight: 600;
+    font-size: 32px;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 10px;
   }
 
   .span {
-    font-size: 18px;
-    opacity: 0.9;
+    font-size: 16px;
+    opacity: 0.92;
   }
 }
 
 .weatherGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "temp wind"
+    "precip sun"
+    "moon extra";
+  gap: 18px;
+  align-items: stretch;
+  margin-top: 4px;
 
-  /* Для виджетов ветра и дополнительной информации, чтобы они занимали больше места */
-  .windWidget, .additionalInfoWidget {
-    grid-column: span 2;
+  .temperatureWidget {
+    grid-area: temp;
   }
 
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
+  .windWidget {
+    grid-area: wind;
   }
 
-  @media (max-width: 768px) {
+  .precipitationWidget {
+    grid-area: precip;
+  }
+
+  .sunriseWidget {
+    grid-area: sun;
+  }
+
+  .additionalInfoWidget {
+    grid-area: extra;
+  }
+
+  .moonWidget {
+    grid-area: moon;
+  }
+
+  @media (max-width: 900px) {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "temp"
+      "wind"
+      "precip"
+      "sun"
+      "moon"
+      "extra";
   }
 }
 
 .chartContainer {
   margin-top: 20px;
   padding: 15px;
-  background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.24), rgba(0, 0, 0, 0.5));
+  background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.24));
   border-radius: 18px;
   position: relative;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
 
   h3 {
     font-size: 20px;

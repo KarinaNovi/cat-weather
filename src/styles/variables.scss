@@ -12,5 +12,5 @@ $input-focus: #4d90fe;
 $suggestion-bg: #ffffff;
 $suggestion-hover: #f5f7fa;
 
-// Типографика
-$primary-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+// Типографика — ближе к системному шрифту iOS
+$primary-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;

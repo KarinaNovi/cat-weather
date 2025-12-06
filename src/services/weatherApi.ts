@@ -1,4 +1,5 @@
 import axios from "axios";
+import { WeatherData } from "../types/weather";
 
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
@@ -10,7 +11,7 @@ export const fetchCities = async (query: string) => {
   return response.data.results || [];
 };
 
-export const fetchWeather = async (lat: number, lon: number) => {
+export const fetchWeather = async (lat: number, lon: number): Promise<WeatherData> => {
   const response = await axios.get(WEATHER_URL, {
     params: {
       latitude: lat,
@@ -62,4 +63,17 @@ export const fetchWeather = async (lat: number, lon: number) => {
     },
   });
   return response.data;
+};
+
+// Адаптер, который добавляет человеко-читаемое имя города к ответу погоды
+export const fetchWeatherWithCity = async (
+  lat: number,
+  lon: number,
+  cityName: string
+): Promise<WeatherData> => {
+  const data = await fetchWeather(lat, lon);
+  return {
+    ...data,
+    cityName,
+  };
 };

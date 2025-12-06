@@ -1,0 +1,25 @@
+@import "../../styles/commonWidgets";
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.sunriseSunsetCard {
+  .icon {
+    background: radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.35), rgba(20, 20, 60, 0.9));
+    overflow: hidden;
+
+    .moonImage {
+      width: 120%;
+      height: 120%;
+      object-fit: cover;
+      transform: translate(-10%, -10%);
+      filter: saturate(1.2) contrast(1.05);
+    }
+  }
+}
+
+

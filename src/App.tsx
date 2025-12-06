@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import SearchBar from './components/SearchBar/SearchBar';
 import WeatherDisplay from './components/WeatherDisplay/WeatherDisplay';
-import { fetchWeather, fetchCities } from './services/weatherApi';
-import { getWeatherImage, getWeatherDescription } from './utils/weatherUtils';
+import { fetchWeatherWithCity } from './services/weatherApi';
+import { getWeatherImage } from './utils/weatherUtils';
 import styles from './App.module.scss';
 import { useQuery } from '@tanstack/react-query';
 import { WeatherData } from './types/weather';
@@ -22,10 +22,12 @@ const App: React.FC = () => {
 
   const { data: weatherData, isLoading, error } = useQuery<WeatherData>(
     ['weather', currentCity.latitude, currentCity.longitude],
-    async () => {
-      const data = await fetchWeather(currentCity.latitude, currentCity.longitude);
-      return { ...data, cityName: currentCity.name };
-    },
+    () =>
+      fetchWeatherWithCity(
+        currentCity.latitude,
+        currentCity.longitude,
+        currentCity.name
+      ),
     { staleTime: 5 * 60 * 1000 } // Данные считаются свежими в течение 5 минут
   );
 
@@ -61,8 +63,8 @@ const App: React.FC = () => {
   };
 
   // Получаем изображение для текущей погоды
-  const weatherImage = weatherData 
-    ? getWeatherImage(weatherData.current_weather.weathercode) 
+  const weatherImage = weatherData
+    ? getWeatherImage(weatherData.current_weather.weathercode)
     : '';
 
   return (

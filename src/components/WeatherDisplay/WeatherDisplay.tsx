@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { getDominantColor } from "../../utils/colorUtils";
 import { getWeatherDescription, getWeatherIcon } from "../../utils/weatherUtils";
+import { getDaylightDuration } from "../../utils/timeUtils";
 import { WeatherData } from "../../types/weather";
 import {
   AreaChart,
@@ -12,11 +13,13 @@ import {
   ReferenceDot,
 } from "recharts";
 import styles from "./WeatherDisplay.module.scss";
+import { useWeatherChartData } from "../../hooks/useWeatherChartData";
 import SunriseSunsetWidget from '../SunriseSunsetWidget/SunriseSunsetWidget';
 import TemperatureWidget from '../TemperatureWidget/TemperatureWidget';
 import WindWidget from '../WindWidget/WindWidget';
 import PrecipitationWidget from '../PrecipitationWidget/PrecipitationWidget';
 import AdditionalInfoWidget from '../AdditionalInfoWidget/AdditionalInfoWidget';
+import MoonWidget from "../MoonWidget/MoonWidget";
 
 const WeatherDisplay: React.FC<{ data: WeatherData; image: string }> = ({
   data,
@@ -39,8 +42,6 @@ const WeatherDisplay: React.FC<{ data: WeatherData; image: string }> = ({
       .catch(() => setBgColor("#87CEEB"));
   };
 
-  // Подготавливаем данные для графиков и находим "текущую" точку,
-  // мемоизируем чтобы избежать лишних пересчётов и перерисовок графиков
   const {
     chartData,
     nowCity,
@@ -48,95 +49,7 @@ const WeatherDisplay: React.FC<{ data: WeatherData; image: string }> = ({
     currentChartTime,
     pastData,
     futureData,
-  } = useMemo(() => {
-    const empty = {
-      chartData: [] as any[],
-      nowCity: null as Date | null,
-      currentChartIdx: 0,
-      currentChartTime: null as Date | null,
-      pastData: [] as any[],
-      futureData: [] as any[],
-    };
-
-    if (!data?.hourly || !data.hourly.time) {
-      return empty;
-    }
-
-    const offset = data.utc_offset_seconds || 0;
-
-    const chartData = data.hourly.time.map((time, i) => {
-      // API возвращает время в ISO формате (UTC), конвертируем в локальное время города
-      const utcDate = new Date(time);
-      const cityDate = new Date(utcDate.getTime() + offset * 1000);
-
-      const day = cityDate.getDate().toString().padStart(2, "0");
-      const month = (cityDate.getMonth() + 1).toString().padStart(2, "0");
-      const timeStr = cityDate.toLocaleTimeString("ru-RU", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      return {
-        fullTime: cityDate,
-        timestamp: cityDate.getTime(), // Для Recharts
-        displayTime: `${day}.${month} ${timeStr}`,
-        humidity: Math.round(data.hourly.relative_humidity_2m?.[i] ?? 0),
-        temperature: Math.round(data.hourly.temperature_2m?.[i] ?? 0),
-        windspeed: Math.round(data.hourly.windspeed_10m?.[i] ?? 0),
-      };
-    });
-
-    // Текущее время в часовом поясе города без округления до часа
-    const clientOffsetSeconds = -new Date().getTimezoneOffset() * 60;
-    const nowCity = new Date(
-      Date.now() + (offset - clientOffsetSeconds) * 1000
-    );
-
-    // Находим индекс первой точки, которая >= текущего времени города
-    let currentChartIdx = chartData.findIndex(
-      (d) => d.fullTime.getTime() >= nowCity.getTime()
-    );
-    if (currentChartIdx === -1) currentChartIdx = chartData.length; // всё прошлое
-
-    // Определяем время для ReferenceLine (используем ближайшую точку к текущему времени)
-    const currentChartTime =
-      currentChartIdx < chartData.length
-        ? chartData[currentChartIdx]?.fullTime
-        : chartData.length > 0
-        ? chartData[chartData.length - 1]?.fullTime
-        : null;
-
-    // pastData включает все точки до текущей включительно (для непрерывности линии)
-    const pastData =
-      currentChartIdx >= 0 ? chartData.slice(0, currentChartIdx + 1) : [];
-    // futureData всегда начиная с текущей точки (может быть весь массив, если всё будущее)
-    // Включаем текущую точку для непрерывности линии
-    const futureData = chartData.slice(
-      currentChartIdx >= 0 ? currentChartIdx : 0
-    );
-
-    return {
-      chartData,
-      nowCity,
-      currentChartIdx,
-      currentChartTime,
-      pastData,
-      futureData,
-    };
-  }, [data]);
-
-  const calculateDaylightDuration = () => {
-    if (!data.daily || !data.daily.sunrise || !data.daily.sunset) return "";
-
-    const sunrise = new Date(data.daily.sunrise[0]);
-    const sunset = new Date(data.daily.sunset[0]);
-    const duration = sunset.getTime() - sunrise.getTime();
-
-    const hours = Math.floor(duration / (1000 * 60 * 60));
-    const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
-
-    return `${hours}ч ${minutes}м`;
-  };
+  } = useWeatherChartData(data);
 
   const currentWeather = data.current_weather
     ? {
@@ -164,6 +77,7 @@ const WeatherDisplay: React.FC<{ data: WeatherData; image: string }> = ({
         solarRadiation: data.daily.shortwave_radiation_sum[0],
       }
     : null;
+
 
   // УНИВЕРСАЛЬНЫЙ КАСТОМНЫЙ TOOLTIP
   const CustomTooltip = ({active, payload, chartData, currentChartIdx, param, isHovering}: {
@@ -236,41 +150,50 @@ const WeatherDisplay: React.FC<{ data: WeatherData; image: string }> = ({
 
         {today && (
           <div className={styles.weatherGrid}>
-            {/* Виджет температуры */}
-            <TemperatureWidget
-              currentTemp={currentWeather.currentTemp}
-              tempMax={today.tempMax}
-              tempMin={today.tempMin}
-              feelsLikeMax={today.feelsLikeMax}
-            />
+            <div className={styles.temperatureWidget}>
+              <TemperatureWidget
+                currentTemp={currentWeather.currentTemp}
+                tempMax={today.tempMax}
+                tempMin={today.tempMin}
+                feelsLikeMax={today.feelsLikeMax}
+              />
+            </div>
 
-            {/* Виджет ветра */}
-            <WindWidget
-              windSpeed={currentWeather.windSpeed}
-              windGustsMax={today.windGustsMax}
-              windSpeedMax={today.windSpeedMax}
-              windDirection={currentWeather.windDirection}
-            />
+            <div className={styles.windWidget}>
+              <WindWidget
+                windSpeed={currentWeather.windSpeed}
+                windGustsMax={today.windGustsMax}
+                windSpeedMax={today.windSpeedMax}
+                windDirection={currentWeather.windDirection}
+              />
+            </div>
 
-            {/* Виджет восхода и захода солнца */}
-            <SunriseSunsetWidget
-              sunrise={today.sunrise}
-              sunset={today.sunset}
-            />
+            <div className={styles.sunriseWidget}>
+              <SunriseSunsetWidget
+                sunrise={today.sunrise}
+                sunset={today.sunset}
+              />
+            </div>
 
-            {/* Виджет осадков */}
-            <PrecipitationWidget
-              precipitation={today.precipitation}
-              precipitationHours={today.precipitationHours}
-              humidity={data.hourly.relative_humidity_2m[0]}
-            />
+            <div className={styles.precipitationWidget}>
+              <PrecipitationWidget
+                precipitation={today.precipitation}
+                precipitationHours={today.precipitationHours}
+                humidity={data.hourly.relative_humidity_2m[0]}
+              />
+            </div>
 
-            {/* Виджет дополнительной информации */}
-            <AdditionalInfoWidget
-              daylightDuration={calculateDaylightDuration()}
-              windDirectionDominant={today.windDirection}
-              feelsLikeMin={today.feelsLikeMin}
-            />
+            <div className={styles.additionalInfoWidget}>
+              <AdditionalInfoWidget
+                daylightDuration={getDaylightDuration(today.sunrise, today.sunset)}
+                windDirectionDominant={today.windDirection}
+                feelsLikeMin={today.feelsLikeMin}
+              />
+            </div>
+
+            <div className={styles.moonWidget}>
+              <MoonWidget />
+            </div>
           </div>
         )}
 
