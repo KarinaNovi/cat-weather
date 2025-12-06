@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getDominantColor } from "../../utils/colorUtils";
+import { getWeatherDescription, getWeatherIcon } from "../../utils/weatherUtils";
+import { WeatherData } from "../../types/weather";
 import {
-  getWeatherDescription,
-  getWeatherIcon,
-  getWindDirection,
-} from "../../utils/weatherUtils";
-import { AreaChart, Area, Tooltip, ResponsiveContainer, XAxis, ReferenceLine } from "recharts";
+  AreaChart,
+  Area,
+  Tooltip,
+  ResponsiveContainer,
+  XAxis,
+  ReferenceLine,
+  ReferenceDot,
+} from "recharts";
 import styles from "./WeatherDisplay.module.scss";
 import SunriseSunsetWidget from '../SunriseSunsetWidget/SunriseSunsetWidget';
 import TemperatureWidget from '../TemperatureWidget/TemperatureWidget';
@@ -13,7 +18,7 @@ import WindWidget from '../WindWidget/WindWidget';
 import PrecipitationWidget from '../PrecipitationWidget/PrecipitationWidget';
 import AdditionalInfoWidget from '../AdditionalInfoWidget/AdditionalInfoWidget';
 
-const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
+const WeatherDisplay: React.FC<{ data: WeatherData; image: string }> = ({
   data,
   image,
 }) => {
@@ -23,7 +28,6 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
     humidity: false,
     windspeed: false,
   });
-  const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     handleImageLoad();
@@ -35,25 +39,43 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
       .catch(() => setBgColor("#87CEEB"));
   };
 
-  // Вспомогательная функция для пересчета utc_offset_seconds в миллисекунды
-  const applyOffset = (dateString, offsetSeconds) => {
-    const date = new Date(dateString);
-    return new Date(date.getTime() + 1000 * offsetSeconds);
-  };
+  // Подготавливаем данные для графиков и находим "текущую" точку,
+  // мемоизируем чтобы избежать лишних пересчётов и перерисовок графиков
+  const {
+    chartData,
+    nowCity,
+    currentChartIdx,
+    currentChartTime,
+    pastData,
+    futureData,
+  } = useMemo(() => {
+    const empty = {
+      chartData: [] as any[],
+      nowCity: null as Date | null,
+      currentChartIdx: 0,
+      currentChartTime: null as Date | null,
+      pastData: [] as any[],
+      futureData: [] as any[],
+    };
 
-  // Подготавливаем chartData с учетом utc_offset_seconds
-  const prepareChartData = () => {
-    if (!data.hourly || !data.hourly.time) return [];
+    if (!data?.hourly || !data.hourly.time) {
+      return empty;
+    }
+
     const offset = data.utc_offset_seconds || 0;
-    return data.hourly.time.map((time, i) => {
+
+    const chartData = data.hourly.time.map((time, i) => {
       // API возвращает время в ISO формате (UTC), конвертируем в локальное время города
       const utcDate = new Date(time);
       const cityDate = new Date(utcDate.getTime() + offset * 1000);
-      
-      const day = cityDate.getDate().toString().padStart(2, '0');
-      const month = (cityDate.getMonth() + 1).toString().padStart(2, '0');
-      const timeStr = cityDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-      
+
+      const day = cityDate.getDate().toString().padStart(2, "0");
+      const month = (cityDate.getMonth() + 1).toString().padStart(2, "0");
+      const timeStr = cityDate.toLocaleTimeString("ru-RU", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
       return {
         fullTime: cityDate,
         timestamp: cityDate.getTime(), // Для Recharts
@@ -63,36 +85,45 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
         windspeed: Math.round(data.hourly.windspeed_10m?.[i] ?? 0),
       };
     });
-  };
 
-  const chartData = prepareChartData();
-  
-  // Используем текущее время из current_weather.time - оно уже в часовом поясе города
-  const nowCity = data.current_weather?.time 
-    ? new Date(data.current_weather.time) 
-    : new Date();
-  
-  // Находим индекс первой точки, которая >= текущего времени города
-  let currentChartIdx = chartData.findIndex(d => d.fullTime.getTime() >= nowCity.getTime());
-  if (currentChartIdx === -1) currentChartIdx = chartData.length; // всё прошлое
-  
-  // Определяем время для ReferenceLine (используем ближайшую точку к текущему времени)
-  const currentChartTime = currentChartIdx < chartData.length 
-    ? chartData[currentChartIdx]?.fullTime 
-    : (chartData.length > 0 ? chartData[chartData.length - 1]?.fullTime : null);
-  
-  // pastData включает все точки до текущей включительно (для непрерывности линии)
-  const pastData = currentChartIdx >= 0 ? chartData.slice(0, currentChartIdx + 1) : [];
-  // futureData всегда начиная с текущей точки (может быть весь массив, если всё будущее)
-  // Включаем текущую точку для непрерывности линии
-  const futureData = chartData.slice(currentChartIdx >= 0 ? currentChartIdx : 0);
+    // Текущее время в часовом поясе города без округления до часа
+    const clientOffsetSeconds = -new Date().getTimezoneOffset() * 60;
+    const nowCity = new Date(
+      Date.now() + (offset - clientOffsetSeconds) * 1000
+    );
 
-  const formatTime = (timeString: string) => {
-    return new Date(timeString).toLocaleTimeString("ru-RU", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+    // Находим индекс первой точки, которая >= текущего времени города
+    let currentChartIdx = chartData.findIndex(
+      (d) => d.fullTime.getTime() >= nowCity.getTime()
+    );
+    if (currentChartIdx === -1) currentChartIdx = chartData.length; // всё прошлое
+
+    // Определяем время для ReferenceLine (используем ближайшую точку к текущему времени)
+    const currentChartTime =
+      currentChartIdx < chartData.length
+        ? chartData[currentChartIdx]?.fullTime
+        : chartData.length > 0
+        ? chartData[chartData.length - 1]?.fullTime
+        : null;
+
+    // pastData включает все точки до текущей включительно (для непрерывности линии)
+    const pastData =
+      currentChartIdx >= 0 ? chartData.slice(0, currentChartIdx + 1) : [];
+    // futureData всегда начиная с текущей точки (может быть весь массив, если всё будущее)
+    // Включаем текущую точку для непрерывности линии
+    const futureData = chartData.slice(
+      currentChartIdx >= 0 ? currentChartIdx : 0
+    );
+
+    return {
+      chartData,
+      nowCity,
+      currentChartIdx,
+      currentChartTime,
+      pastData,
+      futureData,
+    };
+  }, [data]);
 
   const calculateDaylightDuration = () => {
     if (!data.daily || !data.daily.sunrise || !data.daily.sunset) return "";
@@ -135,10 +166,9 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
     : null;
 
   // УНИВЕРСАЛЬНЫЙ КАСТОМНЫЙ TOOLTIP
-  const CustomTooltip = ({active, payload, label, chartData, currentChartIdx, param, isHovering}: {
+  const CustomTooltip = ({active, payload, chartData, currentChartIdx, param, isHovering}: {
     active?: boolean;
     payload?: any[];
-    label?: any;
     chartData: any[];
     currentChartIdx: number;
     param: string;
@@ -148,35 +178,35 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
     if (active && isHovering && payload && payload.length && payload[0].payload) {
       const point = payload[0].payload;
       let value;
-      if(param==='temperature') value = `${point.temperature}°C`;
-      else if(param==='humidity') value = `${point.humidity}%`;
-      else if(param==='windspeed') value = `${point.windspeed} км/ч`;
+      if (param === "temperature") value = `${point.temperature}°C`;
+      else if (param === "humidity") value = `${point.humidity}%`;
+      else if (param === "windspeed") value = `${point.windspeed} км/ч`;
+
+      const isCurrentPoint =
+        nowCity &&
+        currentChartTime &&
+        point.fullTime &&
+        point.fullTime.getTime &&
+        point.fullTime.getTime() === currentChartTime.getTime();
+
+      const labelTime = isCurrentPoint
+        ? nowCity.toLocaleTimeString("ru-RU", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })
+        : point.displayTime;
+
       return (
-        <div style={{ background: 'rgba(0,0,0,0.92)', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 16, textAlign: 'center', minWidth: 70 }}>
-          <b style={{ fontSize: 18 }}>{point.displayTime}</b>
-          <div style={{ fontSize: 22, margin: 4 }}><b>{value}</b></div>
+        <div className={styles.chartTooltip}>
+          <div className={styles.time}>{labelTime}</div>
+          <div className={styles.value}>{value}</div>
         </div>
       );
     }
-    
-    // По умолчанию показываем текущее время (когда не наведено)
-    if (!isHovering) {
-      const idx = currentChartIdx < chartData.length ? currentChartIdx : Math.max(0, chartData.length - 1);
-      const point = chartData[idx];
-      if (!point) return null;
-      
-      let value;
-      if(param==='temperature') value = `${point.temperature}°C`;
-      else if(param==='humidity') value = `${point.humidity}%`;
-      else if(param==='windspeed') value = `${point.windspeed} км/ч`;
-      return (
-        <div style={{ background: 'rgba(0,0,0,0.92)', borderRadius: 8, padding: '10px 20px', color: 'white', fontSize: 16, textAlign: 'center', minWidth: 70 }}>
-          <b style={{ fontSize: 18 }}>{point.displayTime}</b>
-          <div style={{ fontSize: 22, margin: 4 }}><b>{value}</b></div>
-        </div>
-      );
-    }
-    
+
+    // В состоянии без ховера показываем отдельный статичный тултип вне Recharts,
+    // поэтому здесь ничего не рендерим
     return null;
   };
 
@@ -251,6 +281,27 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
           onMouseLeave={() => setIsHovering(prev => ({ ...prev, temperature: false }))}
         >
           <h3>Температура</h3>
+
+          {!isHovering.temperature && chartData.length > 0 && nowCity && (
+            <div className={styles.staticTooltip}>
+              <div className={styles.time}>
+                {nowCity.toLocaleTimeString("ru-RU", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </div>
+              <div className={styles.value}>
+                {chartData[
+                  currentChartIdx < chartData.length
+                    ? currentChartIdx
+                    : chartData.length - 1
+                ]?.temperature}
+                °C
+              </div>
+            </div>
+          )}
+
           <ResponsiveContainer width="100%" height={90}>
             <AreaChart data={chartData} margin={{top:5,right:0,left:0,bottom:0}}>
               <XAxis
@@ -272,12 +323,27 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                   ifOverflow="extendDomain"
                 />
               )}
+              {chartData.length > 0 && currentChartTime && (
+                <ReferenceDot
+                  x={currentChartTime.getTime()}
+                  y={
+                    chartData[
+                      currentChartIdx < chartData.length
+                        ? currentChartIdx
+                        : chartData.length - 1
+                    ]?.temperature
+                  }
+                  r={4}
+                  fill="#ffffff"
+                  stroke="#8884d8"
+                  strokeWidth={2}
+                />
+              )}
               <Tooltip 
                 content={props => (
                   <CustomTooltip
                     active={props.active}
                     payload={props.payload}
-                    label={props.label}
                     chartData={chartData}
                     currentChartIdx={currentChartIdx}
                     param='temperature'
@@ -303,6 +369,27 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
           onMouseLeave={() => setIsHovering(prev => ({ ...prev, humidity: false }))}
         >
           <h3>Влажность</h3>
+
+          {!isHovering.humidity && chartData.length > 0 && nowCity && (
+            <div className={styles.staticTooltip}>
+              <div className={styles.time}>
+                {nowCity.toLocaleTimeString("ru-RU", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </div>
+              <div className={styles.value}>
+                {chartData[
+                  currentChartIdx < chartData.length
+                    ? currentChartIdx
+                    : chartData.length - 1
+                ]?.humidity}
+                %
+              </div>
+            </div>
+          )}
+
           <ResponsiveContainer width="100%" height={60}>
             <AreaChart data={chartData} margin={{top:5,right:0,left:0,bottom:0}}>
               <XAxis
@@ -324,12 +411,27 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                   ifOverflow="extendDomain"
                 />
               )}
+              {chartData.length > 0 && currentChartTime && (
+                <ReferenceDot
+                  x={currentChartTime.getTime()}
+                  y={
+                    chartData[
+                      currentChartIdx < chartData.length
+                        ? currentChartIdx
+                        : chartData.length - 1
+                    ]?.humidity
+                  }
+                  r={4}
+                  fill="#ffffff"
+                  stroke="#8884d8"
+                  strokeWidth={2}
+                />
+              )}
               <Tooltip 
                 content={props => (
                   <CustomTooltip
                     active={props.active}
                     payload={props.payload}
-                    label={props.label}
                     chartData={chartData}
                     currentChartIdx={currentChartIdx}
                     param='humidity'
@@ -355,6 +457,28 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
           onMouseLeave={() => setIsHovering(prev => ({ ...prev, windspeed: false }))}
         >
           <h3>Скорость ветра</h3>
+
+          {!isHovering.windspeed && chartData.length > 0 && nowCity && (
+            <div className={styles.staticTooltip}>
+              <div className={styles.time}>
+                {nowCity.toLocaleTimeString("ru-RU", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </div>
+              <div className={styles.value}>
+                {chartData[
+                  currentChartIdx < chartData.length
+                    ? currentChartIdx
+                    : chartData.length - 1
+                ]?.windspeed}
+                {" "}
+                км/ч
+              </div>
+            </div>
+          )}
+
           <ResponsiveContainer width="100%" height={60}>
             <AreaChart data={chartData} margin={{top:5,right:0,left:0,bottom:0}}>
               <XAxis
@@ -376,12 +500,27 @@ const WeatherDisplay: React.FC<{ data: any; image: string }> = ({
                   ifOverflow="extendDomain"
                 />
               )}
+              {chartData.length > 0 && currentChartTime && (
+                <ReferenceDot
+                  x={currentChartTime.getTime()}
+                  y={
+                    chartData[
+                      currentChartIdx < chartData.length
+                        ? currentChartIdx
+                        : chartData.length - 1
+                    ]?.windspeed
+                  }
+                  r={4}
+                  fill="#ffffff"
+                  stroke="#ffc658"
+                  strokeWidth={2}
+                />
+              )}
               <Tooltip 
                 content={props => (
                   <CustomTooltip
                     active={props.active}
                     payload={props.payload}
-                    label={props.label}
                     chartData={chartData}
                     currentChartIdx={currentChartIdx}
                     param='windspeed'

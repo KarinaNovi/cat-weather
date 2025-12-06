@@ -42,6 +42,7 @@ export const fetchWeather = async (lat: number, lon: number) => {
       hourly: [
         "temperature_2m",
         "relative_humidity_2m",
+        "windspeed_10m",
         "rain",
         "weather_code",
         "snowfall",

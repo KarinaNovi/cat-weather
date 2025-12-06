@@ -1,59 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import SearchBar from './components/SearchBar/SearchBar';
 import WeatherDisplay from './components/WeatherDisplay/WeatherDisplay';
 import { fetchWeather, fetchCities } from './services/weatherApi';
 import { getWeatherImage, getWeatherDescription } from './utils/weatherUtils';
 import styles from './App.module.scss';
 import { useQuery } from '@tanstack/react-query';
-
-interface WeatherData {
-  // Добавьте сюда реальные поля, которые возвращает API
-  // Например, current_weather, daily, hourly и т.д.
-  current_weather: {
-    time: string;
-    interval: number;
-    temperature: number;
-    windspeed: number;
-    winddirection: number;
-    is_day: number;
-    weathercode: number;
-  };
-  daily: {
-    time: string[];
-    weather_code: number[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    sunrise: string[];
-    sunset: string[];
-    uv_index_max: number[];
-    uv_index_clear_sky_max: number[]; // Добавлено
-    rain_sum: number[];
-    showers_sum: number[];
-    snowfall_sum: number[];
-    wind_speed_10m_max: number[];
-    wind_gusts_10m_max: number[]; // Добавлено
-    wind_direction_10m_dominant: number[]; // Добавлено
-    shortwave_radiation_sum: number[]; // Добавлено
-    precipitation_sum: number[]; // Добавлено
-    precipitation_hours: number[]; // Добавлено
-  };
-  hourly: {
-    time: string[];
-    temperature_2m: number[];
-    relative_humidity_2m: number[];
-    rain: number[];
-    weather_code: number[];
-    snowfall: number[];
-  };
-  timezone: string;
-  timezone_abbreviation: string; // Добавлено
-  generationtime_ms: number;
-  elevation: number;
-  latitude: number;
-  longitude: number;
-  utc_offset_seconds: number;
-  cityName?: string;
-}
+import { WeatherData } from './types/weather';
 
 // Дефолтные координаты Парижа
 const DEFAULT_CITY = {

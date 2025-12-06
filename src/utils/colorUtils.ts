@@ -34,7 +34,10 @@ export const getDominantColor = (imageUrl: string): Promise<string> => {
       colorMap.forEach((count, color) => {
         if (count > maxCount) {
           maxCount = count;
-          dominantColor = `rgb(${color})`;
+          const [r, g, b] = color.split(',').map(Number);
+          const toHex = (v: number) =>
+            v.toString(16).padStart(2, '0');
+          dominantColor = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
         }
       });
       
